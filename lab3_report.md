@@ -73,6 +73,102 @@ graph TD
 ![qemu_output](./assets/qemu_output.png)
 
 # Challenge1：描述与理解中断流程
+## 1. 异常产生阶段
+ucore 中处理中断异常的完整流程
+• CPU 检测到异常或中断事件
+
+• 将当前 PC 值保存到 sepc 寄存器
+
+• 将异常原因保存到 scause 寄存器
+
+• 将相关异常信息保存到 stval 寄存器（如缺页地址、非法指令等）
+
+• 保存当前状态到 sstatus 寄存器
+
+• 关闭中断（清除 sstatus.SIE 位）
+
+• 跳转到 stvec 寄存器指向的异常处理入口地址
+
+mv a0, sp 的目的:
+mv a0, sp  # 将栈指针 sp 的值移动到 a0 寄存器
+目的： 将当前栈指针（指向已保存的 trapframe 结构）作为参数传递给 trap 函数。
+
+## 2.SAVE_ALL 中寄存器保存在栈中的位置确定:
+
+栈布局由 struct trapframe 定义决定：
+struct trapframe {
+    struct pushregs gpr;    // 36个通用寄存器，偏移量 0-35*REGBYTES
+    uintptr_t status;       // 状态寄存器，偏移量 36*REGBYTES
+    uintptr_t epc;          // 异常程序计数器，偏移量 37*REGBYTES  
+    uintptr_t badvaddr;     // 错误地址，偏移量 38*REGBYTES
+    uintptr_t cause;        // 异常原因，偏移量 39*REGBYTES
+};
+
+SAVE_ALL 宏的具体实现：
+.macro SAVE_ALL
+    # 保存通用寄存器到栈中预定位置
+    sd x0, 0*REGBYTES(sp)   # zero 寄存器
+    sd x1, 1*REGBYTES(sp)   # ra 寄存器
+    sd x2, 2*REGBYTES(sp)   # sp 寄存器
+    # ... 保存其他寄存器
+    sd x31, 31*REGBYTES(sp) # t6 寄存器
+    
+    # 保存特殊寄存器
+    csrr t0, sstatus
+    sd t0, 36*REGBYTES(sp)  # status
+    csrr t0, sepc
+    sd t0, 37*REGBYTES(sp)  # epc
+    csrr t0, stval
+    sd t0, 38*REGBYTES(sp)  # badvaddr
+    csrr t0, scause
+    sd t0, 39*REGBYTES(sp)  # cause
+.endm
+
+• 每个寄存器在栈中的偏移量由 struct trapframe 的内存布局决定
+
+• 编译器根据结构体成员的声明顺序和大小计算偏移量
+
+• REGBYTES 是寄存器大小（8字节）
+
+## 3. 对于任何中断，__alltraps 中都需要保存所有寄存器吗？
+需要保存所有寄存器，理由如下：
+
+### 1. 上下文完整性要求
+   • 异常可能发生在任何代码位置，无法预知哪些寄存器被使用
+
+   • 必须保证异常返回后程序能继续正确执行
+
+   • 只有保存完整的上下文才能实现透明的异常处理
+
+### 2. 通用性设计
+   • 使用统一的异常处理入口简化设计
+
+   • 避免为不同类型异常编写不同的保存/恢复代码
+
+   • 符合"总是为最坏情况做准备"的原则
+
+### 3. 嵌套异常处理
+   • 在异常处理过程中可能发生新的异常
+
+   • 完整的寄存器保存支持嵌套异常处理
+
+   • 每个异常级别都有独立的上下文保存
+
+### 4. 调试和支持需求
+   • 完整的寄存器信息便于调试和核心转储
+
+   • 支持高级功能如单步调试、检查点等
+
+### 5. 性能考虑
+   • 寄存器保存/恢复操作相对较快
+
+   • 异常本身是低频事件，性能开销可接受
+
+   • 统一处理比条件保存更简单高效
+
+例外情况：
+某些优化场景下（如某些嵌入式系统），如果能够确定某些寄存器不会被修改，可以只保存部分寄存器。但 ucore 作为教学操作系统，选择最安全完整的方案。
+
 
 
 
