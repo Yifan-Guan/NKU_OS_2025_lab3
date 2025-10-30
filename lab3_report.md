@@ -96,6 +96,7 @@ mv a0, sp  # 将栈指针 sp 的值移动到 a0 寄存器
 ## 2.SAVE_ALL 中寄存器保存在栈中的位置确定:
 
 栈布局由 struct trapframe 定义决定：
+
 struct trapframe {
     struct pushregs gpr;    // 36个通用寄存器，偏移量 0-35*REGBYTES
     uintptr_t status;       // 状态寄存器，偏移量 36*REGBYTES
@@ -105,6 +106,7 @@ struct trapframe {
 };
 
 SAVE_ALL 宏的具体实现：
+
 .macro SAVE_ALL
     # 保存通用寄存器到栈中预定位置
     sd x0, 0*REGBYTES(sp)   # zero 寄存器
@@ -125,9 +127,7 @@ SAVE_ALL 宏的具体实现：
 .endm
 
 • 每个寄存器在栈中的偏移量由 struct trapframe 的内存布局决定
-
 • 编译器根据结构体成员的声明顺序和大小计算偏移量
-
 • REGBYTES 是寄存器大小（8字节）
 
 ## 3. 对于任何中断，__alltraps 中都需要保存所有寄存器吗？
