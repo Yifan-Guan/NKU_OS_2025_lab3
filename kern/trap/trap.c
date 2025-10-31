@@ -126,19 +126,16 @@ void interrupt_handler(struct trapframe *tf) {
             // In fact, Call sbi_set_timer will clear STIP, or you can clear it
             // directly.
             // cprintf("Supervisor timer interrupt\n");
-             /* LAB3 EXERCISE1   YOUR CODE : 2312313 */
+             /* LAB3 EXERCISE1   YOUR CODE : 2312313, 2312307 */
             /*(1)设置下次时钟中断- clock_set_next_event()
              *(2)计数器（ticks）加一
              *(3)当计数器加到100的时候，我们会输出一个`100ticks`表示我们触发了100次时钟中断，同时打印次数（num）加一
             * (4)判断打印次数，当打印次数为10时，调用<sbi.h>中的关机函数关机
             */
             clock_set_next_event();
-            ticks ++;
-            if (ticks % TICK_NUM == 0) {
+            if (++ticks % TICK_NUM == 0) {
                 print_ticks();
-                num ++;
-                if (num == 10) 
-                {
+                if (++num == 10) {
                     sbi_shutdown();
                 }
             }
@@ -180,6 +177,9 @@ void exception_handler(struct trapframe *tf) {
              *(2)输出异常指令地址
              *(3)更新 tf->epc寄存器
             */
+            cprintf("Illegal instruction at 0x%08x\n", tf->epc);
+            cprintf("Exception type: Illegal instruction\n");
+            tf->epc += 4; // 假设指令长度为4字
             break;
         case CAUSE_BREAKPOINT:
             //断点异常处理
@@ -188,6 +188,9 @@ void exception_handler(struct trapframe *tf) {
              *(2)输出异常指令地址
              *(3)更新 tf->epc寄存器
             */
+            cprintf("ebreak caught at 0x%08x\n", tf->epc);
+            cprintf("Exception type: Breakpoint\n");
+            tf->epc += 4; // 假设指令长度为4字
             break;
         case CAUSE_MISALIGNED_LOAD:
             break;

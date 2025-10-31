@@ -26,6 +26,7 @@
 - 控制程序运行时间后自动关机
   - 在设定时间（10次打印或者说10s）到达后，通过关机函数sbi_shutdown()强制关机
   - 这里需要补充一个变量num，用来记录打印次数
+- Note：由于笔者使用的riscv-unknown-elf-gcc的版本中，RISC-V中的sbadaddr寄存器改为stval，故对trapentry.S中第47行进行修改，将sbadadder改为stval。
 
 ## 2.定时器中断处理的流程
 
@@ -62,13 +63,7 @@ graph TD
 
 ## 3.结果呈现
 
-### 3.1 通过make grade验证
-
-![makegrade_output](./assets/makegrade_output.png)
-
-### 3.2 通过qemu验证
-
-每秒打印一次“100 ticks”，打印10次后强制关机
+运行make qemu指令验证，每秒打印一次“100 ticks”，打印10次后强制关机
 
 ![qemu_output](./assets/qemu_output.png)
 
@@ -206,8 +201,34 @@ csrrw s0, sscratch, x0   //将sscratch值读到s0，同时将x0(0)写入sscratch
 
 # Challenge3：完善异常中断
 
+在trap.c中完成了CAUSE_ILLEGAL_INSTRUCTION和CAUSE_BREAKPOINT两个异常的处理函数后，要对上述两个异常进行测试，本次实验采用内联汇编的方式进行测试。
 
+为触发ILLEGAL_INSTRUCTION，需要让CPU执行一个未定义的指令，内联汇编语句如下：
 
+```asm
+    __asm__ volatile (
+        ".word 0x00000000 \n"
+        "nop                "
+    );
+```
 
+.word伪指令将0x00000000这一RISC-V非法指令插入到当前位置，CPU执行到此时触发非法指令异常。
+
+对于BREAKPOINT的触发，内联汇编代码如下：
+
+```asm
+    __asm__ volatile (
+        "ebreak \n"
+        "nop      "
+    );
+```
+
+直接执行ebreak这一RISC-V的断点命令即可触发。
+
+测试输出如下：
+
+![image-20251031234526824](lab3_report.assets/image-20251031234526824.png)
+
+异常中断测试成功。
 
 # 相关知识点

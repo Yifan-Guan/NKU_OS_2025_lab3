@@ -12,6 +12,7 @@
 
 int kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
+static void test_exceptions(void);
 
 int kern_init(void) {
     extern char edata[], end[];
@@ -35,6 +36,8 @@ int kern_init(void) {
     clock_init();   // init clock interrupt
     intr_enable();  // enable irq interrupt
 
+    test_exceptions(); // test exceptions
+
     /* do nothing */
     while (1)
         ;
@@ -55,3 +58,24 @@ void __attribute__((noinline)) grade_backtrace0(int arg0, int arg1, int arg2) {
 
 void grade_backtrace(void) { grade_backtrace0(0, (uintptr_t)kern_init, 0xffff0000); }
 
+void test_exceptions(void) {
+    cprintf("\n=== Starting Exception Tests ===\n\n");
+    
+    // 测试1: 触发非法指令异常
+    cprintf("1. Testing CAUSE_ILLEGAL_INSTRUCTION...\n");
+    __asm__ volatile (
+        ".word 0x00000000 \n"
+        "nop                "
+    );
+    cprintf("Illegal instruction test completed.\n\n");
+    
+    // 测试2: 触发断点异常  
+    cprintf("2. Testing CAUSE_BREAKPOINT...\n");
+    __asm__ volatile (
+        "ebreak \n"
+        "nop      "
+    );
+    cprintf("Breakpoint test completed.\n\n");
+    
+    cprintf("=== All Exception Tests Completed ===\n\n");
+}
